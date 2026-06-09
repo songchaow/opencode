@@ -378,6 +378,10 @@ export const layer: Layer.Layer<Service, never, FSUtil.Service | Ripgrep.Service
       input.signal?.throwIfAborted()
       if (input.file?.length) return yield* rip(input)
 
+      // fff grep returns incomplete results for regex alternation (|).
+      // Detect unescaped pipe and fall back to ripgrep which handles it correctly.
+      if (/(?<!\\)\|/.test(input.pattern)) return yield* rip(input)
+
       const pick = yield* picker(input.cwd)
       if (!pick) return yield* rip(input)
 
