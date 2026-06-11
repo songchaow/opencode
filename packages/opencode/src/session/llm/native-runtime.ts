@@ -51,10 +51,11 @@ function statusWithFetch(
   input: Pick<StreamInput, "model" | "provider" | "auth">,
   fetch: typeof globalThis.fetch | undefined,
 ): RuntimeStatus {
-  const providerID = input.model.providerID
-  if (providerID !== "openai" && providerID !== "anthropic" && !providerID.startsWith("opencode"))
-    return { type: "unsupported", reason: "provider is not openai, opencode, or anthropic" }
   const npm = input.model.api.npm
+  // Gate on the npm SDK package — this is the only check needed to ensure
+  // protocol compatibility. Any providerID (custom or built-in) using a
+  // supported SDK package can use the native runtime, which avoids ai-sdk's
+  // strict Zod validation issues with proxy gateways that emit null fields.
   if (npm !== "@ai-sdk/openai" && npm !== "@ai-sdk/openai-compatible" && npm !== "@ai-sdk/anthropic")
     return { type: "unsupported", reason: "provider package is not OpenAI, OpenAI-compatible, or Anthropic" }
   if (input.auth?.type === "oauth" && !(input.provider.id === "openai" && fetch)) {
