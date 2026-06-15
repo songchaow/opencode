@@ -91,6 +91,105 @@ function timeoutController(ms: number) {
   }
 }
 
+// Some Anthropic-compatible upstream gateways (notably Bedrock-backed proxies
+// such as TimiAI's internal Claude relay) emit `"caller": null` on
+// `content_block_start` events for `tool_use` / `server_tool_use` blocks.
+// `@ai-sdk/anthropic` >= 3.0.78 introduced "Programmatic tool calling" and
+// declares `caller` as `z.union([...]).optional()` — Zod's `.optional()` only
+// accepts `undefined`/missing, NOT `null`, so the stream parser throws
+// `AI_TypeValidationError` and the whole turn aborts. The Anthropic spec itself
+// never sends `caller: null` (the field is simply omitted when absent), so it
+// is safe to strip the key client-side. We do this with a tiny SSE-aware
+// transform that only touches the offending property and is otherwise
+// byte-identical to the upstream stream.
+function sanitizeAnthropicSSE(res: Response): Response {
+  if (!res.body) return res
+  if (!res.headers.get("content-type")?.includes("text/event-stream")) return res
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder("utf-8")
+  const encoder = new TextEncoder()
+  let buffer = ""
+
+  const sanitizeDataLine = (line: string): string => {
+    // Only `data: { ... }` lines carry JSON event payloads we need to inspect.
+    // SSE spec allows `data:` followed by either ` ` or no space; handle both.
+    const colon = line.indexOf(":")
+    if (colon === -1) return line
+    const field = line.slice(0, colon)
+    if (field !== "data") return line
+    let payload = line.slice(colon + 1)
+    if (payload.startsWith(" ")) payload = payload.slice(1)
+    if (!payload.startsWith("{")) return line
+    let parsed: any
+    try {
+      parsed = JSON.parse(payload)
+    } catch {
+      return line
+    }
+    // Only the `content_block_start` event shape carries `content_block.caller`.
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      parsed.type === "content_block_start" &&
+      parsed.content_block &&
+      typeof parsed.content_block === "object" &&
+      parsed.content_block.caller === null
+    ) {
+      delete parsed.content_block.caller
+      return "data: " + JSON.stringify(parsed)
+    }
+    return line
+  }
+
+  const flushLines = (text: string, ctrl: ReadableStreamDefaultController<Uint8Array>) => {
+    // Process whole `\n`-delimited lines; preserve any trailing partial line.
+    // SSE may use `\r\n` separators — handle both by normalizing per-line.
+    const out: string[] = []
+    let start = 0
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === "\n") {
+        let line = text.slice(start, i)
+        // Strip a single trailing `\r` if present so JSON parsing succeeds, but
+        // re-emit using `\n` to keep separators canonical.
+        if (line.endsWith("\r")) line = line.slice(0, -1)
+        out.push(sanitizeDataLine(line))
+        out.push("\n")
+        start = i + 1
+      }
+    }
+    buffer = text.slice(start)
+    if (out.length > 0) ctrl.enqueue(encoder.encode(out.join("")))
+  }
+
+  const body = new ReadableStream<Uint8Array>({
+    async pull(ctrl) {
+      const part = await reader.read()
+      if (part.done) {
+        // Flush any trailing partial line as-is (no newline → cannot be a
+        // complete event payload, but emit verbatim to avoid data loss).
+        if (buffer.length > 0) {
+          ctrl.enqueue(encoder.encode(buffer))
+          buffer = ""
+        }
+        ctrl.close()
+        return
+      }
+      buffer += decoder.decode(part.value, { stream: true })
+      flushLines(buffer, ctrl)
+    },
+    async cancel(reason) {
+      await reader.cancel(reason)
+    },
+  })
+
+  return new Response(body, {
+    headers: new Headers(res.headers),
+    status: res.status,
+    statusText: res.statusText,
+  })
+}
+
 function googleVertexAnthropicBaseURL(project: string | undefined, location: string | undefined) {
   if (!project) return
   if (location !== "eu" && location !== "us") return
@@ -1763,8 +1862,17 @@ const layer = Layer.effect(
             timeout: false,
           }).finally(() => headerTimeoutCtl?.clear())
 
-          if (!chunkAbortCtl) return res
-          return wrapSSE(res, chunkTimeout, chunkAbortCtl)
+          // Workaround for Anthropic-compatible upstream proxies that emit
+          // `"caller": null` on `content_block_start` events. See
+          // `sanitizeAnthropicSSE` for full context. Apply only to
+          // anthropic-shaped npm packages so other providers pay no overhead.
+          const isAnthropicShape =
+            typeof model.api.npm === "string" &&
+            (model.api.npm === "@ai-sdk/anthropic" || model.api.npm.endsWith("/anthropic"))
+          const sanitized = isAnthropicShape ? sanitizeAnthropicSSE(res) : res
+
+          if (!chunkAbortCtl) return sanitized
+          return wrapSSE(sanitized, chunkTimeout, chunkAbortCtl)
         }
 
         const bundledLoader = BUNDLED_PROVIDERS[model.api.npm]
