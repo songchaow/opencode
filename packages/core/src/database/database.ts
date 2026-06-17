@@ -45,6 +45,15 @@ export function path() {
     if (Flag.OPENCODE_DB === ":memory:" || isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
     return join(Global.Path.data, Flag.OPENCODE_DB)
   }
+  // Local fix: by default, share the main `opencode.db` across all channels
+  // (including dev / local / arbitrary git-branch builds) so a self-built dev
+  // binary can see the same session history as the stable npm-installed one.
+  // Set OPENCODE_CHANNEL_DB=1 to opt back into per-channel db files.
+  if (
+    process.env.OPENCODE_CHANNEL_DB !== "1" &&
+    process.env.OPENCODE_CHANNEL_DB !== "true"
+  )
+    return join(Global.Path.data, "opencode.db")
   if (
     ["latest", "beta", "prod"].includes(InstallationChannel) ||
     process.env.OPENCODE_DISABLE_CHANNEL_DB === "1" ||
