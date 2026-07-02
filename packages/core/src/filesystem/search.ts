@@ -123,6 +123,8 @@ export const fffLayer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const location = yield* Location.Service
+    const fs = yield* FSUtil.Service
+    const ripgrep = yield* Ripgrep.Service
     const result = yield* Effect.try({
       try: () =>
         Fff.create({
@@ -161,7 +163,7 @@ export const fffLayer = Layer.effect(
           )
         }),
       grep: (input) =>
-        Effect.sync(() => {
+        Effect.gen(function* () {
           const prefix = input.path?.replaceAll("\\", "/").replace(/\/$/, "")
           const found = result.value.grep(
             [prefix ? `${prefix}/**` : undefined, input.include, input.pattern]
@@ -170,7 +172,7 @@ export const fffLayer = Layer.effect(
             { mode: "regex", pageSize: input.limit, timeBudgetMs: 1_500 },
           )
           if (!found.ok) throw found.error
-          return found.value.items.map((match) => {
+          const rows = found.value.items.map((match) => {
             const bytes = Buffer.from(match.lineContent)
             return FileSystem.Match.make({
               entry: FileSystem.Entry.make({
@@ -187,6 +189,43 @@ export const fffLayer = Layer.effect(
               })),
             })
           })
+
+          // If fff returned empty results, fall back to ripgrep.
+          // fff may silently return 0 matches for patterns it cannot handle
+          // (e.g. regex alternation, advanced syntax), so never trust an empty fff result.
+          if (rows.length === 0) {
+            yield* Effect.logWarning("fff grep returned 0 results, falling back to ripgrep", {
+              dir: input.path ?? ".",
+              pattern: input.pattern,
+            })
+            const target = path.resolve(location.directory, input.path ?? ".")
+            const info = yield* fs.stat(target).pipe(Effect.orDie)
+            const cwd = info.type === "File" ? path.dirname(target) : target
+            return yield* ripgrep
+              .grep({
+                cwd,
+                pattern: input.pattern,
+                file: info.type === "File" ? path.basename(target) : undefined,
+                include: input.include,
+                limit: input.limit ?? Number.MAX_SAFE_INTEGER,
+              })
+              .pipe(
+                Effect.map((rgResult) =>
+                  rgResult.map((match) =>
+                    FileSystem.Match.make({
+                      ...match,
+                      entry: FileSystem.Entry.make({
+                        ...match.entry,
+                        path: RelativePath.make(path.relative(location.directory, path.resolve(cwd, match.entry.path))),
+                      }),
+                    }),
+                  ),
+                ),
+                Effect.orDie,
+              )
+          }
+
+          return rows
         }),
       find: (input) =>
         Effect.sync(() => {
