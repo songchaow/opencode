@@ -542,16 +542,7 @@ export const ShellTool = Tool.define(
 
           const exit = yield* Effect.raceAll([
             handle.exitCode.pipe(
-              Effect.catchAll((err) => {
-                // Process was killed by a signal (e.g. SIGTERM from pkill)
-                // Extract the signal name so the agent can see what happened
-                const msg = err && typeof err === "object" && "message" in err
-                  ? (err as Error).message
-                  : String(err)
-                const m = msg.match(/signal:\s*'([^']+)'/)
-                signalled = m ? m[1] : "SIGNAL"
-                return Effect.succeed(null)
-              }),
+              Effect.orElseSucceed(() => null),
               Effect.map((code) => ({ kind: "exit" as const, code })),
             ),
             abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
@@ -565,6 +556,11 @@ export const ShellTool = Tool.define(
           if (exit.kind === "timeout") {
             expired = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+          }
+          if (exit.kind === "exit" && exit.code === null) {
+            // Process was killed by a signal (exitCode returns PlatformError
+            // when code is null; orElseSucceed recovers it to null)
+            signalled = "SIGNAL"
           }
 
           return exit.kind === "exit" ? exit.code : null
