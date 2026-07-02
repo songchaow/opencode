@@ -446,6 +446,7 @@ export const ShellTool = Tool.define(
       let cut = false
       let expired = false
       let aborted = false
+      let signalled: string | false = false
 
       const closeSink = Effect.fnUntraced(function* () {
         const stream = sink
@@ -541,7 +542,16 @@ export const ShellTool = Tool.define(
 
           const exit = yield* Effect.raceAll([
             handle.exitCode.pipe(
-              Effect.catchAll(() => Effect.succeed(null)),
+              Effect.catchAll((err) => {
+                // Process was killed by a signal (e.g. SIGTERM from pkill)
+                // Extract the signal name so the agent can see what happened
+                const msg = err && typeof err === "object" && "message" in err
+                  ? (err as Error).message
+                  : String(err)
+                const m = msg.match(/signal:\s*'([^']+)'/)
+                signalled = m ? m[1] : "SIGNAL"
+                return Effect.succeed(null)
+              }),
               Effect.map((code) => ({ kind: "exit" as const, code })),
             ),
             abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
@@ -568,6 +578,7 @@ export const ShellTool = Tool.define(
         )
       }
       if (aborted) meta.push("User aborted the command")
+      if (signalled) meta.push(`Process terminated by signal: ${signalled}`)
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true
