@@ -551,11 +551,23 @@ export const ShellTool = Tool.define(
 
           if (exit.kind === "abort") {
             aborted = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+            yield* handle
+              .kill({ forceKillAfter: "3 seconds" })
+              .pipe(
+                Effect.catchAllCause((cause) =>
+                  Effect.logWarning("Failed to kill shell process after abort", { cause }),
+                ),
+              )
           }
           if (exit.kind === "timeout") {
             expired = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+            yield* handle
+              .kill({ forceKillAfter: "3 seconds" })
+              .pipe(
+                Effect.catchAllCause((cause) =>
+                  Effect.logWarning("Failed to kill shell process after timeout", { cause }),
+                ),
+              )
           }
           if (exit.kind === "exit" && exit.code === null) {
             // Process was killed by a signal (exitCode returns PlatformError

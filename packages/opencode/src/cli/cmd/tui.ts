@@ -223,7 +223,9 @@ export const TuiThreadCommand = cmd({
         if (stopped) return
         stopped = true
         process.off("SIGUSR2", reload)
-        await withTimeout(client.call("shutdown", undefined), 5000).catch(() => {})
+        await withTimeout(client.call("shutdown", undefined), 15000).catch((error) => {
+          console.error("[opencode] Worker shutdown failed or timed out:", error)
+        })
         worker.terminate()
       }
 

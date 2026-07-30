@@ -13,9 +13,13 @@ import { disposeAllInstancesAndEmitGlobalDisposed } from "@/server/global-lifecy
 
 Heap.start()
 
-const onUnhandledRejection = (_error: unknown) => {}
+const onUnhandledRejection = (error: unknown) => {
+  console.error("[opencode worker] Unhandled rejection:", error)
+}
 
-const onUncaughtException = (_error: Error) => {}
+const onUncaughtException = (error: Error) => {
+  console.error("[opencode worker] Uncaught exception:", error)
+}
 
 process.on("unhandledRejection", onUnhandledRejection)
 process.on("uncaughtException", onUncaughtException)
@@ -70,8 +74,16 @@ export const rpc = {
     )
   },
   async shutdown() {
-    await InstanceRuntime.disposeAllInstances()
-    if (server) await server.stop(true)
+    try {
+      await InstanceRuntime.disposeAllInstances()
+    } catch (error) {
+      console.error("[opencode worker] Error during disposeAllInstances:", error)
+    }
+    try {
+      if (server) await server.stop(true)
+    } catch (error) {
+      console.error("[opencode worker] Error during server.stop:", error)
+    }
     process.off("unhandledRejection", onUnhandledRejection)
     process.off("uncaughtException", onUncaughtException)
   },
