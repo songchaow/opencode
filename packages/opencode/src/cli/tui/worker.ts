@@ -86,6 +86,12 @@ export const rpc = {
     }
     process.off("unhandledRejection", onUnhandledRejection)
     process.off("uncaughtException", onUncaughtException)
+    // Exit gracefully after the RPC response is sent back to the main thread.
+    // Without this, the main thread calls worker.terminate() which forcefully
+    // kills the Worker and can trigger a native abort (SIGABRT) in Bun's
+    // runtime when internal resources (JSC heap, child process handles, etc.)
+    // are in an inconsistent state.
+    setTimeout(() => process.exit(0), 50)
   },
 }
 

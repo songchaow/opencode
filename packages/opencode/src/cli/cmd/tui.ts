@@ -223,9 +223,18 @@ export const TuiThreadCommand = cmd({
         if (stopped) return
         stopped = true
         process.off("SIGUSR2", reload)
-        await withTimeout(client.call("shutdown", undefined), 15000).catch((error) => {
+        let graceful = false
+        try {
+          await withTimeout(client.call("shutdown", undefined), 15000)
+          graceful = true
+        } catch (error) {
           console.error("[opencode] Worker shutdown failed or timed out:", error)
-        })
+        }
+        if (graceful) {
+          // The Worker schedules process.exit(0) ~50ms after shutdown returns.
+          // Wait briefly so it can exit on its own; terminate() is only a safety net.
+          await new Promise((resolve) => setTimeout(resolve, 500))
+        }
         worker.terminate()
       }
 
