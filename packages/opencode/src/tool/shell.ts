@@ -554,7 +554,7 @@ export const ShellTool = Tool.define(
             yield* handle
               .kill({ forceKillAfter: "3 seconds" })
               .pipe(
-                Effect.catchAllCause((cause) =>
+                Effect.catchCause((cause) =>
                   Effect.logWarning("Failed to kill shell process after abort", { cause }),
                 ),
               )
@@ -564,7 +564,7 @@ export const ShellTool = Tool.define(
             yield* handle
               .kill({ forceKillAfter: "3 seconds" })
               .pipe(
-                Effect.catchAllCause((cause) =>
+                Effect.catchCause((cause) =>
                   Effect.logWarning("Failed to kill shell process after timeout", { cause }),
                 ),
               )
