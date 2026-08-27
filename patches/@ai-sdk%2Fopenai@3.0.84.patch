@@ -1,50 +1,7 @@
-diff --git a/node_modules/@ai-sdk/openai/dist/index.mjs b/node_modules/@ai-sdk/openai/dist/index.mjs
---- a/node_modules/@ai-sdk/openai/dist/index.mjs
-+++ b/node_modules/@ai-sdk/openai/dist/index.mjs
-@@ -3093,7 +3093,8 @@ async function convertToOpenAIResponsesInput({
-               providerOptionsName
-             );
-             input.push({
--              role: "system",
-+                  type: "message",
-+                  role: "system",
-               content: promptCacheBreakpoint == null ? content : [
-                 {
-                   type: "input_text",
-@@ -3110,7 +3111,8 @@ async function convertToOpenAIResponsesInput({
-               providerOptionsName
-             );
-             input.push({
--              role: "developer",
-+                  type: "message",
-+                  role: "developer",
-               content: promptCacheBreakpoint == null ? content : [
-                 {
-                   type: "input_text",
-@@ -3139,7 +3141,8 @@ async function convertToOpenAIResponsesInput({
-       }
-       case "user": {
-         input.push({
--          role: "user",
-+                  type: "message",
-+                  role: "user",
-           content: content.map((part, index) => {
-             var _a2, _b2, _c2;
-             switch (part.type) {
-@@ -3220,7 +3223,8 @@ async function convertToOpenAIResponsesInput({
-                 break;
-               }
-               input.push({
--                role: "assistant",
-+                  type: "message",
-+                  role: "assistant",
-                 content: [{ type: "output_text", text: part.text }],
-                 id,
-                 ...phase != null && { phase }
-
-diff --git a/node_modules/@ai-sdk/openai/dist/index.js b/node_modules/@ai-sdk/openai/dist/index.js
---- a/node_modules/@ai-sdk/openai/dist/index.js
-+++ b/node_modules/@ai-sdk/openai/dist/index.js
+diff --git a/dist/index.js b/dist/index.js
+index d3ff1b8..a710c6a 100644
+--- a/dist/index.js
++++ b/dist/index.js
 @@ -2998,7 +2998,8 @@ async function convertToOpenAIResponsesInput({
                providerOptionsName
              );
@@ -85,11 +42,11 @@ diff --git a/node_modules/@ai-sdk/openai/dist/index.js b/node_modules/@ai-sdk/op
                  content: [{ type: "output_text", text: part.text }],
                  id,
                  ...phase != null && { phase }
-
-diff --git a/node_modules/@ai-sdk/openai/dist/internal/index.mjs b/node_modules/@ai-sdk/openai/dist/internal/index.mjs
---- a/node_modules/@ai-sdk/openai/dist/internal/index.mjs
-+++ b/node_modules/@ai-sdk/openai/dist/internal/index.mjs
-@@ -2989,7 +2989,8 @@ async function convertToOpenAIResponsesInput({
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 2644043..a906a47 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -3093,7 +3093,8 @@ async function convertToOpenAIResponsesInput({
                providerOptionsName
              );
              input.push({
@@ -99,7 +56,7 @@ diff --git a/node_modules/@ai-sdk/openai/dist/internal/index.mjs b/node_modules/
                content: promptCacheBreakpoint == null ? content : [
                  {
                    type: "input_text",
-@@ -3006,7 +3007,8 @@ async function convertToOpenAIResponsesInput({
+@@ -3110,7 +3111,8 @@ async function convertToOpenAIResponsesInput({
                providerOptionsName
              );
              input.push({
@@ -109,7 +66,7 @@ diff --git a/node_modules/@ai-sdk/openai/dist/internal/index.mjs b/node_modules/
                content: promptCacheBreakpoint == null ? content : [
                  {
                    type: "input_text",
-@@ -3035,7 +3037,8 @@ async function convertToOpenAIResponsesInput({
+@@ -3139,7 +3141,8 @@ async function convertToOpenAIResponsesInput({
        }
        case "user": {
          input.push({
@@ -119,7 +76,7 @@ diff --git a/node_modules/@ai-sdk/openai/dist/internal/index.mjs b/node_modules/
            content: content.map((part, index) => {
              var _a2, _b2, _c2;
              switch (part.type) {
-@@ -3116,7 +3119,8 @@ async function convertToOpenAIResponsesInput({
+@@ -3220,7 +3223,8 @@ async function convertToOpenAIResponsesInput({
                  break;
                }
                input.push({
@@ -129,10 +86,10 @@ diff --git a/node_modules/@ai-sdk/openai/dist/internal/index.mjs b/node_modules/
                  content: [{ type: "output_text", text: part.text }],
                  id,
                  ...phase != null && { phase }
-
-diff --git a/node_modules/@ai-sdk/openai/dist/internal/index.js b/node_modules/@ai-sdk/openai/dist/internal/index.js
---- a/node_modules/@ai-sdk/openai/dist/internal/index.js
-+++ b/node_modules/@ai-sdk/openai/dist/internal/index.js
+diff --git a/dist/internal/index.js b/dist/internal/index.js
+index aedcfc7..4244b2f 100644
+--- a/dist/internal/index.js
++++ b/dist/internal/index.js
 @@ -2946,7 +2946,8 @@ async function convertToOpenAIResponsesInput({
                providerOptionsName
              );
@@ -164,6 +121,50 @@ diff --git a/node_modules/@ai-sdk/openai/dist/internal/index.js b/node_modules/@
              var _a2, _b2, _c2;
              switch (part.type) {
 @@ -3073,7 +3076,8 @@ async function convertToOpenAIResponsesInput({
+                 break;
+               }
+               input.push({
+-                role: "assistant",
++                  type: "message",
++                  role: "assistant",
+                 content: [{ type: "output_text", text: part.text }],
+                 id,
+                 ...phase != null && { phase }
+diff --git a/dist/internal/index.mjs b/dist/internal/index.mjs
+index 40d83eb..df460be 100644
+--- a/dist/internal/index.mjs
++++ b/dist/internal/index.mjs
+@@ -2989,7 +2989,8 @@ async function convertToOpenAIResponsesInput({
+               providerOptionsName
+             );
+             input.push({
+-              role: "system",
++                  type: "message",
++                  role: "system",
+               content: promptCacheBreakpoint == null ? content : [
+                 {
+                   type: "input_text",
+@@ -3006,7 +3007,8 @@ async function convertToOpenAIResponsesInput({
+               providerOptionsName
+             );
+             input.push({
+-              role: "developer",
++                  type: "message",
++                  role: "developer",
+               content: promptCacheBreakpoint == null ? content : [
+                 {
+                   type: "input_text",
+@@ -3035,7 +3037,8 @@ async function convertToOpenAIResponsesInput({
+       }
+       case "user": {
+         input.push({
+-          role: "user",
++                  type: "message",
++                  role: "user",
+           content: content.map((part, index) => {
+             var _a2, _b2, _c2;
+             switch (part.type) {
+@@ -3116,7 +3119,8 @@ async function convertToOpenAIResponsesInput({
                  break;
                }
                input.push({
